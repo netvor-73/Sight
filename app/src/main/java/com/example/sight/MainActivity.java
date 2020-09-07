@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -73,25 +74,42 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onClassifyClicked(View view) {
-        final Tensor inputTensor = TensorImageUtils.bitmapToFloat32Tensor(image,
-                TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
-                TensorImageUtils.TORCHVISION_NORM_STD_RGB);
 
-        final Tensor outputTensor = model.forward(IValue.from(inputTensor)).toTensor();
+        AsyncTask<Bitmap, Void, String> task = new AsyncTask<Bitmap, Void, String>() {
+            @Override
+            protected String doInBackground(Bitmap... bitmaps) {
 
-        final float[] scores = outputTensor.getDataAsFloatArray();
+                final Tensor inputTensor = TensorImageUtils.bitmapToFloat32Tensor(image,
+                        TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
+                        TensorImageUtils.TORCHVISION_NORM_STD_RGB);
 
-        float maxScore = -Float.MAX_VALUE;
-        int maxScoreIdx = -1;
+                final Tensor outputTensor = model.forward(IValue.from(inputTensor)).toTensor();
 
-        for (int i = 0; i < scores.length; i++){
-            if(scores[i] > maxScore){
-                maxScore = scores[i];
-                maxScoreIdx = i;
+                final float[] scores = outputTensor.getDataAsFloatArray();
+
+                float maxScore = -Float.MAX_VALUE;
+                int maxScoreIdx = -1;
+
+                for (int i = 0; i < scores.length; i++){
+                    if(scores[i] > maxScore){
+                        maxScore = scores[i];
+                        maxScoreIdx = i;
+                    }
+                }
+
+                String className = ImageNetClasses.IMAGENET_CLASSES[maxScoreIdx];
+
+                return className;
             }
-        }
 
-        String className = ImageNetClasses.IMAGENET_CLASSES[maxScoreIdx];
-        textView.setText(className);
+            @Override
+            protected void onPostExecute(String s) {
+                textView.setText(s);
+            }
+        };
+
+        task.execute(image);
+
+
     }
 }
